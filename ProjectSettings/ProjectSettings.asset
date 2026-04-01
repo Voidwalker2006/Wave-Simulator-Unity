@@ -924,11 +924,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 1
   windowsGamepadBackendHint: 0
-  cloudProjectId: 8762360e-7fa7-4c9f-98e2-bd9d033b85a6
+  cloudProjectId: 96f5a9de-8c81-4a7e-8ca1-b69c4c39975b
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: WaveSimulator
-  organizationId: hartaj2006
+  projectName: Wave-Simulator-Unity
+  organizationId: unity_94af6d0986231cd0b6ca
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

@@ -19,3 +19,4 @@ UserSettings/
 *.opendb
 *.VC.db 
 .vs/
+.vscode
