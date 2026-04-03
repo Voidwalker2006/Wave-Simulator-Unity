@@ -242,7 +242,7 @@ MonoBehaviour:
   poly: 100
   waveSimulation: {fileID: 137656489}
   material_force: {fileID: 2100000, guid: b5bbdb045f4d84a259937b0b80ee4c17, type: 2}
-  scale_amplitude: 25
+  scale_amplitude: 5
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
