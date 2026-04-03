@@ -187,9 +187,17 @@ public class Simulate : MonoBehaviour
         float v10 = grid[Mathf.Clamp(x1, 0, size - 1), Mathf.Clamp(y0, 0, size - 1)];
         float v11 = grid[Mathf.Clamp(x1, 0, size - 1), Mathf.Clamp(y1, 0, size - 1)];
 
-        float v0 = Mathf.Lerp(v00, v01, fy);
-        float v1 = Mathf.Lerp(v10, v11, fy);
-        return Mathf.Lerp(v0, v1, fx);
+        // float v0 = Mathf.Lerp(v00, v01, fy);
+        // float v1 = Mathf.Lerp(v10, v11, fy);
+        // return Mathf.Lerp(v0, v1, fx);
+        float v0 = SinLerp(v00, v01, fy);
+        float v1 = SinLerp(v10, v11, fy);
+        return SinLerp(v0, v1, fx);
+    }
+
+    private float SinLerp(float a, float b, float t)
+    {
+        return a + (b - a) * (Mathf.Sin(t * Mathf.PI - Mathf.PI / 2) + 1) / 2;
     }
 
     private Color RainbowColor(float normalizedHeight)
