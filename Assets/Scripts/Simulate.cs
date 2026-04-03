@@ -5,11 +5,13 @@ using UnityEngine;
 public class Simulate : MonoBehaviour
 {
     [SerializeField]
-    private int poly = 100; // number of vertices per row/column (default 100)
+    private int vertexCount = 100; // number of vertices per row/column (default 100)
     public WaveSimulation waveSimulation;
     public Material material_force;
     [SerializeField]
     private float scale_amplitude = 1f; // scale factor for wave height (default 1)
+    [SerializeField]
+    private int size = 10; // wave simulation grid size (default 10)
     private Mesh mesh;
     private Vector3[] vertices;
     private int[] triangles;
@@ -60,13 +62,13 @@ public class Simulate : MonoBehaviour
 
     private void CreateGrid()
     {
-        if (poly > 250)
+        if (vertexCount > 250)
         {
-            Debug.LogWarning($"Poly value {poly} is too large; clamping to 250 to avoid mesh overflow.");
-            poly = 250;
+            Debug.LogWarning($"Vertex count value {vertexCount} is too large; clamping to 250 to avoid mesh overflow.");
+            vertexCount = 250;
         }
 
-        int count = Mathf.Clamp(poly, 1, 250);
+        int count = Mathf.Clamp(vertexCount, 1, 250);
         vertices = new Vector3[count * count];
 
         for (int y = 0; y < count; y++)
@@ -113,7 +115,7 @@ public class Simulate : MonoBehaviour
             mesh.Clear();
 
         // // Use 32-bit indices for large grids (more than 65,535 vertices)
-        // int count = Mathf.Max(1, poly);
+        // int count = Mathf.Max(1, vertexCount);
         // if (count * count > 65535)
         // {
         //     mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -149,9 +151,11 @@ public class Simulate : MonoBehaviour
         for (int i = 0; i < vertices.Length; i++)
         {
             // colors[i]=Color.red;
-            int x = i % poly;
-            int y = i / poly;
-            float rawHeight = waveSimulation.current[x, y];
+            int x = i % vertexCount;
+            int y = i / vertexCount;
+            float posX = x / (vertexCount - 1.0f) * (size - 1.0f);
+            float posZ = y / (vertexCount - 1.0f) * (size - 1.0f);
+            float rawHeight = BilinearInterpolate(waveSimulation.current, posX, posZ);
 
             vertices[i].y = rawHeight * scale_amplitude;
             
@@ -166,6 +170,26 @@ public class Simulate : MonoBehaviour
         mesh.vertices = vertices;
         mesh.colors = colors;
         mesh.RecalculateNormals();
+    }
+
+    private float BilinearInterpolate(float[,] grid, float x, float y)
+    {
+        int x0 = Mathf.FloorToInt(x);
+        int x1 = Mathf.Min(x0 + 1, size - 1);
+        int y0 = Mathf.FloorToInt(y);
+        int y1 = Mathf.Min(y0 + 1, size - 1);
+
+        float fx = x - x0;
+        float fy = y - y0;
+
+        float v00 = grid[Mathf.Clamp(x0, 0, size - 1), Mathf.Clamp(y0, 0, size - 1)];
+        float v01 = grid[Mathf.Clamp(x0, 0, size - 1), Mathf.Clamp(y1, 0, size - 1)];
+        float v10 = grid[Mathf.Clamp(x1, 0, size - 1), Mathf.Clamp(y0, 0, size - 1)];
+        float v11 = grid[Mathf.Clamp(x1, 0, size - 1), Mathf.Clamp(y1, 0, size - 1)];
+
+        float v0 = Mathf.Lerp(v00, v01, fy);
+        float v1 = Mathf.Lerp(v10, v11, fy);
+        return Mathf.Lerp(v0, v1, fx);
     }
 
     private Color RainbowColor(float normalizedHeight)
