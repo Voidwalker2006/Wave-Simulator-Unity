@@ -15,49 +15,12 @@ public class Simulate : MonoBehaviour
     private Mesh mesh;
     private Vector3[] vertices;
     private int[] triangles;
-    private Color[] colors;
-    private float minValue;
-    private float maxValue;
-    private float span;
 
     void Start()
     {
         CreateGrid();
         BuildMesh();
         GetComponent<MeshRenderer>().material = material_force; // drag your material asset into a public variable for this
-
-        // Compute normalization values
-        if (waveSimulation != null && waveSimulation.current != null)
-        {
-            int width = waveSimulation.current.GetLength(0);
-            int height = waveSimulation.current.GetLength(1);
-
-            minValue = float.MaxValue;
-            maxValue = float.MinValue;
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    float v = waveSimulation.current[x, y];
-                    if (v < minValue) minValue = v;
-                    if (v > maxValue) maxValue = v;
-                }
-            }
-
-            span = maxValue - minValue;
-            if (span <= Mathf.Epsilon)
-            {
-                span = 1f; // avoid division by zero
-            }
-        }
-        else
-        {
-            minValue = 0;
-            maxValue = 1;
-            span = 1;
-        }
-        
     }
 
     private void CreateGrid()
@@ -81,7 +44,6 @@ public class Simulate : MonoBehaviour
         }
 
         triangles = new int[(count - 1) * (count - 1) * 6];
-        colors = new Color[vertices.Length];
 
         int triIndex = 0;
         for (int y = 0; y < count - 1; y++)
@@ -124,11 +86,8 @@ public class Simulate : MonoBehaviour
         // {
         //     mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
         // }
-        for(int i = 0; i < vertices.Length; i++)
-            colors[i] = Color.red; // default color before simulation updates  
         mesh.vertices = vertices;
         mesh.triangles = triangles;
-        mesh.colors = colors;
         mesh.RecalculateNormals();
 
         var meshFilter = GetComponent<MeshFilter>();
@@ -158,17 +117,8 @@ public class Simulate : MonoBehaviour
             float rawHeight = BilinearInterpolate(waveSimulation.current, posX, posZ);
 
             vertices[i].y = rawHeight * scale_amplitude;
-            
-            float normalized =Mathf.InverseLerp(-1f,1f,rawHeight); // (rawHeight - minValue) / span; // normalize to 0-1 based on observed min/max
-            // if(normalized >1f || normalized < 0f)
-            //     t = false;
-            colors[i] = Color.Lerp(Color.blue, Color.red, normalized); // blue for low, red for high, with smooth gradient in between
         }
-        // if(Time.frameCount % 30 == 0)
-        //     Debug.Log(t);
-        
         mesh.vertices = vertices;
-        mesh.colors = colors;
         mesh.RecalculateNormals();
     }
 

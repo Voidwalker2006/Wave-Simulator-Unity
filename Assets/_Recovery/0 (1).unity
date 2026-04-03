@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 137656487}
   - component: {fileID: 137656489}
   - component: {fileID: 137656490}
+  - component: {fileID: 137656491}
   m_Layer: 0
   m_Name: Mesh
   m_TagString: Untagged
@@ -244,6 +245,21 @@ MonoBehaviour:
   material_force: {fileID: 2100000, guid: b5bbdb045f4d84a259937b0b80ee4c17, type: 2}
   scale_amplitude: 25
   size: 25
+--- !u!114 &137656491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137656484}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e741851cba3ad425c91ecf922cc6b379, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.VisualScripting.Core::Unity.VisualScripting.Variables
+  _data:
+    _json: '{"declarations":{"Kind":"Object","collection":{"$content":[],"$version":"A"},"$version":"A"}}'
+    _objectReferences: []
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
