@@ -14,6 +14,9 @@ public class Simulate : MonoBehaviour
     private Vector3[] vertices;
     private int[] triangles;
     private Color[] colors;
+    private float minValue;
+    private float maxValue;
+    private float span;
 
     void Start()
     {
@@ -21,6 +24,37 @@ public class Simulate : MonoBehaviour
         BuildMesh();
         GetComponent<MeshRenderer>().material = material_force; // drag your material asset into a public variable for this
 
+        // Compute normalization values
+        if (waveSimulation != null && waveSimulation.current != null)
+        {
+            int width = waveSimulation.current.GetLength(0);
+            int height = waveSimulation.current.GetLength(1);
+
+            minValue = float.MaxValue;
+            maxValue = float.MinValue;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float v = waveSimulation.current[x, y];
+                    if (v < minValue) minValue = v;
+                    if (v > maxValue) maxValue = v;
+                }
+            }
+
+            span = maxValue - minValue;
+            if (span <= Mathf.Epsilon)
+            {
+                span = 1f; // avoid division by zero
+            }
+        }
+        else
+        {
+            minValue = 0;
+            maxValue = 1;
+            span = 1;
+        }
         
     }
 
@@ -110,22 +144,6 @@ public class Simulate : MonoBehaviour
         int width = waveSimulation.current.GetLength(0);
         int height = waveSimulation.current.GetLength(1);
 
-        float minValue = float.MaxValue;
-        float maxValue = float.MinValue;
-
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                float v = waveSimulation.current[x, y];
-                if (v < minValue) minValue = v;
-                if (v > maxValue) maxValue = v;
-            }
-        }
-
-        float span = maxValue - minValue;
-        bool hasSpan = span > Mathf.Epsilon;
-
         // bool t = true;
 
         for (int i = 0; i < vertices.Length; i++)
@@ -137,13 +155,14 @@ public class Simulate : MonoBehaviour
 
             vertices[i].y = rawHeight * scale_amplitude;
             
-            float normalized = hasSpan ? (rawHeight - minValue) / span : 0f;
+            float normalized =Mathf.InverseLerp(-1f,1f,rawHeight); // (rawHeight - minValue) / span; // normalize to 0-1 based on observed min/max
             // if(normalized >1f || normalized < 0f)
             //     t = false;
-            colors[i] = RainbowColor(normalized);
+            colors[i] = Color.Lerp(Color.blue, Color.red, normalized); // blue for low, red for high, with smooth gradient in between
         }
         // if(Time.frameCount % 30 == 0)
         //     Debug.Log(t);
+        
         mesh.vertices = vertices;
         mesh.colors = colors;
         mesh.RecalculateNormals();
