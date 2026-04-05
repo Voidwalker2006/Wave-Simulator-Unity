@@ -1,67 +1,81 @@
-using UnityEditor;
 using UnityEngine;
 
-[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
 public class Simulate : MonoBehaviour
 {
-    [SerializeField]
-    private int vertexCount = 100; // number of vertices per row/column (default 100)
+    [Header("Mesh Resolution")]
+    [SerializeField] private int vertexCount = 100;
+
+    [Header("References")]
     public WaveSimulation waveSimulation;
     public Material material_force;
-    [SerializeField]
-    private float scale_amplitude = 1f; // scale factor for wave height (default 1)
-    [SerializeField]
-    private int size = 10; // wave simulation grid size (default 10)
+
+    [Header("Visual Settings")]
+    [SerializeField] private float scale_amplitude = 1f;
+
     private Mesh mesh;
     private Vector3[] vertices;
     private int[] triangles;
+    private MeshFilter meshFilter;
+    private MeshCollider meshCollider;
 
     void Start()
     {
+        meshFilter = GetComponent<MeshFilter>();
+        meshCollider = GetComponent<MeshCollider>();
+
+        if (waveSimulation == null)
+        {
+            Debug.LogError("WaveSimulation reference is missing in Simulate.cs");
+            return;
+        }
+
         CreateGrid();
         BuildMesh();
-        GetComponent<MeshRenderer>().material = material_force; // drag your material asset into a public variable for this
+
+        if (material_force != null)
+        {
+            GetComponent<MeshRenderer>().material = material_force;
+        }
     }
 
     private void CreateGrid()
     {
-        if (vertexCount > 250)
-        {
-            Debug.LogWarning($"Vertex count value {vertexCount} is too large; clamping to 250 to avoid mesh overflow.");
-            vertexCount = 250;
-        }
+        vertexCount = Mathf.Clamp(vertexCount, 2, 250);
 
-        int count = Mathf.Clamp(vertexCount, 1, 250);
-        vertices = new Vector3[count * count];
+        vertices = new Vector3[vertexCount * vertexCount];
 
-        for (int y = 0; y < count; y++)
+        float simSize = waveSimulation.size - 1;
+
+        for (int y = 0; y < vertexCount; y++)
         {
-            for (int x = 0; x < count; x++)
+            for (int x = 0; x < vertexCount; x++)
             {
-                int index = y * count + x;
-                vertices[index] = new Vector3(x, 0f, y);
+                int index = y * vertexCount + x;
+
+                float posX = (x / (vertexCount - 1f)) * simSize;
+                float posZ = (y / (vertexCount - 1f)) * simSize;
+
+                vertices[index] = new Vector3(posX, 0f, posZ);
             }
         }
 
-        triangles = new int[(count - 1) * (count - 1) * 6];
+        triangles = new int[(vertexCount - 1) * (vertexCount - 1) * 6];
 
         int triIndex = 0;
-        for (int y = 0; y < count - 1; y++)
+        for (int y = 0; y < vertexCount - 1; y++)
         {
-            for (int x = 0; x < count - 1; x++)
+            for (int x = 0; x < vertexCount - 1; x++)
             {
-                int v = y * count + x;
+                int v = y * vertexCount + x;
 
-                // Build two triangles from each grid cell (smallest square on x-z plane)
-                // using shared vertices so height updates remain smooth.
-                // Clockwise winding order for each face (Unity front faces use clockwise by default).
                 triangles[triIndex++] = v;
-                triangles[triIndex++] = v + count + 1;
+                triangles[triIndex++] = v + vertexCount + 1;
                 triangles[triIndex++] = v + 1;
 
                 triangles[triIndex++] = v;
-                triangles[triIndex++] = v + count;
-                triangles[triIndex++] = v + count + 1;
+                triangles[triIndex++] = v + vertexCount;
+                triangles[triIndex++] = v + vertexCount + 1;
             }
         }
     }
@@ -70,31 +84,28 @@ public class Simulate : MonoBehaviour
     {
         if (mesh == null)
         {
-            mesh = new Mesh {name = "ProceduralGrid"};
-            mesh.MarkDynamic(); 
-        }    
+            mesh = new Mesh { name = "ProceduralGrid" };
+            mesh.MarkDynamic();
+        }
         else
+        {
             mesh.Clear();
+        }
 
-        // // Use 32-bit indices for large grids (more than 65,535 vertices)
-        // int count = Mathf.Max(1, vertexCount);
-        // if (count * count > 65535)
-        // {
-        //     mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        // }
-        // else
-        // {
-        //     mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
-        // }
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
 
-        var meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh;
+
+        if (meshCollider != null)
+        {
+            meshCollider.sharedMesh = null;
+            meshCollider.sharedMesh = mesh;
+        }
     }
 
-    private void Update()
+    void Update()
     {
         if (mesh == null || vertices == null || vertices.Length == 0)
             return;
@@ -102,61 +113,53 @@ public class Simulate : MonoBehaviour
         if (waveSimulation == null || waveSimulation.current == null)
             return;
 
-        int width = waveSimulation.current.GetLength(0);
-        int height = waveSimulation.current.GetLength(1);
-
-        // bool t = true;
-
         for (int i = 0; i < vertices.Length; i++)
         {
-            // colors[i]=Color.red;
-            int x = i % vertexCount;
-            int y = i / vertexCount;
-            float posX = x / (vertexCount - 1.0f) * (size - 1.0f);
-            float posZ = y / (vertexCount - 1.0f) * (size - 1.0f);
-            float rawHeight = BilinearInterpolate(waveSimulation.current, posX, posZ);
+            float posX = vertices[i].x;
+            float posZ = vertices[i].z;
 
+            float rawHeight = BilinearInterpolate(waveSimulation.current, posX, posZ);
             vertices[i].y = rawHeight * scale_amplitude;
         }
+
         mesh.vertices = vertices;
         mesh.RecalculateNormals();
+
+        // IMPORTANT: update collider so clicking works correctly
+        if (meshCollider != null)
+        {
+            meshCollider.sharedMesh = null;
+            meshCollider.sharedMesh = mesh;
+        }
     }
 
     private float BilinearInterpolate(float[,] grid, float x, float y)
     {
+        int gridSizeX = grid.GetLength(0);
+        int gridSizeY = grid.GetLength(1);
+
         int x0 = Mathf.FloorToInt(x);
-        int x1 = Mathf.Min(x0 + 1, size - 1);
+        int x1 = Mathf.Min(x0 + 1, gridSizeX - 1);
         int y0 = Mathf.FloorToInt(y);
-        int y1 = Mathf.Min(y0 + 1, size - 1);
+        int y1 = Mathf.Min(y0 + 1, gridSizeY - 1);
 
         float fx = x - x0;
         float fy = y - y0;
 
-        float v00 = grid[Mathf.Clamp(x0, 0, size - 1), Mathf.Clamp(y0, 0, size - 1)];
-        float v01 = grid[Mathf.Clamp(x0, 0, size - 1), Mathf.Clamp(y1, 0, size - 1)];
-        float v10 = grid[Mathf.Clamp(x1, 0, size - 1), Mathf.Clamp(y0, 0, size - 1)];
-        float v11 = grid[Mathf.Clamp(x1, 0, size - 1), Mathf.Clamp(y1, 0, size - 1)];
+        float v00 = grid[Mathf.Clamp(x0, 0, gridSizeX - 1), Mathf.Clamp(y0, 0, gridSizeY - 1)];
+        float v01 = grid[Mathf.Clamp(x0, 0, gridSizeX - 1), Mathf.Clamp(y1, 0, gridSizeY - 1)];
+        float v10 = grid[Mathf.Clamp(x1, 0, gridSizeX - 1), Mathf.Clamp(y0, 0, gridSizeY - 1)];
+        float v11 = grid[Mathf.Clamp(x1, 0, gridSizeX - 1), Mathf.Clamp(y1, 0, gridSizeY - 1)];
 
-        // float v0 = Mathf.Lerp(v00, v01, fy);
-        // float v1 = Mathf.Lerp(v10, v11, fy);
-        // return Mathf.Lerp(v0, v1, fx);
         float v0 = SinLerp(v00, v01, fy);
         float v1 = SinLerp(v10, v11, fy);
+
         return SinLerp(v0, v1, fx);
     }
 
     private float SinLerp(float a, float b, float t)
     {
-        return a + (b - a) * (Mathf.Sin(t * Mathf.PI - Mathf.PI / 2) + 1) / 2;
-    }
-
-    private Color RainbowColor(float normalizedHeight)
-    {
-        // normalizedHeight: 0 (bottom) to 1 (top), with red in top.
-        // Hue from ~0.72 (violet) to 0 (red) produces rainbow-like.
-        float hue = Mathf.Lerp(0.72f, 0f, Mathf.Clamp01(normalizedHeight));
-        Color c = Color.HSVToRGB(hue, 1f, 1f);
-        return c;
+        return a + (b - a) * (Mathf.Sin(t * Mathf.PI - Mathf.PI / 2f) + 1f) / 2f;
     }
 
     private void OnDrawGizmosSelected()
