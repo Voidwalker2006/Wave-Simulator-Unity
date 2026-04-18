@@ -4,23 +4,36 @@ public class WaveClickInput : MonoBehaviour
 {
     public Camera cam;
     public WaveSimulation sim;
+    public WaveDemoController demo;
 
-    [Header("Ripple Settings")]
     public float impulseStrength = 0.8f;
     public int rippleRadius = 3;
     public float falloff = 1f;
 
-    [Header("Drag Settings")]
-    public float clickCooldown = 0.05f;
-
-    private float lastClickTime = 0f;
-
     void Update()
     {
-        if (Input.GetMouseButton(0) && Time.time - lastClickTime > clickCooldown)
+        // try to auto-assign missing references
+        if (cam == null)
+            cam = Camera.main;
+        if (sim == null)
+            sim = FindObjectOfType<WaveSimulation>();
+        if (demo == null)
+            demo = FindObjectOfType<WaveDemoController>();
+
+        if (demo == null || sim == null || cam == null)
+        {
+            // missing required references - nothing to do
+            return;
+        }
+
+        // Disable clicks in other modes
+        if (demo.GetMode() != WaveDemoController.Mode.Interactive)
+            return;
+
+        // register clicks on press
+        if (Input.GetMouseButtonDown(0))
         {
             HandleClick();
-            lastClickTime = Time.time;
         }
     }
 

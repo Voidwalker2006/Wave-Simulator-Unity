@@ -1,141 +1,114 @@
 using UnityEngine;
-using TMPro;
 
 public class WaveDemoController : MonoBehaviour
 {
     public WaveSimulation sim;
-    public TextMeshProUGUI modeText;
 
-    [Header("Wave Source Settings")]
-    public float sourceAmplitude = 0.02f;
-    public float sourceFrequency = 1.6f;
-    [Tooltip("Radius (in grid cells) around the source that receives a smoothed value")]
-    public int sourceRadius = 2;
+        [Header("Single Pulse Settings")]
+        public float singlePulseAmplitude = 5f;
+        public Vector2Int singlePulsePosition = new Vector2Int(-1, -1);
 
-    [Header("Source Positions")]
-    public Vector2Int source1 = new Vector2Int(38, 50);
-    public Vector2Int source2 = new Vector2Int(62, 50);
+        [Header("Double Slit Settings")]
+        public int slitWallX = -1; // -1 means center
+        public int slitSeparation = 6;
+        public int slitHeight = 3;
+        public float slitSourceFrequency = 3f;
+        public float slitSourceAmplitude = 0.5f;
 
-    private enum DemoMode
+    public enum Mode
     {
         None,
-        SingleSource,
-        Interference,
+        SinglePulse,
+        Interactive,
         Diffraction
     }
 
-    private DemoMode currentMode = DemoMode.None;
-    private float timer = 0f;
+    private Mode currentMode = Mode.None;
 
-    void UpdateModeUI()
-    {
-        if (modeText != null)
-            modeText.text = "Mode: " + currentMode.ToString();
-    }
-    public void SetSingleSource()
-    {
-        currentMode = DemoMode.SingleSource;
-        timer = 0f;
-        UpdateModeUI();
-    }
-    public void SetInterference()
-    {
-        currentMode = DemoMode.Interference;
-        timer = 0f;
-        UpdateModeUI();
-    }
-
-    public void SetDiffraction()
-    {
-        currentMode = DemoMode.Diffraction;
-        timer = 0f;
-        sim.ResetSimulation();
-        sim.CreateSlit();
-        UpdateModeUI();
-    }
-
-    public void ResetSimulationUI()
-    {
-        currentMode = DemoMode.None;
-        timer = 0f;
-        sim.ResetSimulation();
-        UpdateModeUI();
-    }
     void Update()
     {
-       
         if (sim == null) return;
 
+        // 🔹 MODE SWITCHING
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
-            currentMode = DemoMode.SingleSource;
-            timer = 0f;
-            UpdateModeUI();
+            SetSinglePulseMode();
         }
 
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
-            currentMode = DemoMode.Interference;
-            timer = 0f;
-            UpdateModeUI();
+            SetInteractiveMode();
         }
 
         if (Input.GetKeyDown(KeyCode.Alpha3))
         {
-            currentMode = DemoMode.Diffraction;
-            timer = 0f;
-            sim.ResetSimulation();
-            sim.CreateSlit(); // activate diffraction
-            UpdateModeUI();
+            SetDiffractionMode();
         }
 
-        if (Input.GetKeyDown(KeyCode.R))
+        // 🔹 CONTINUOUS SOURCE FOR DIFFRACTION (looks better)
+        if (currentMode == Mode.Diffraction)
         {
-            currentMode = DemoMode.None;
-            timer = 0f;
-            sim.ResetSimulation();
-        }
+            int wallX = (slitWallX >= 0) ? slitWallX : sim.size / 2;
 
-        timer += Time.deltaTime;
+            // slits were created at wallX; compute slit centers
+            int centerY = sim.size / 2;
+            int sep = Mathf.Abs(slitSeparation);
+            int slit1Y = centerY - sep;
+            int slit2Y = centerY + sep;
 
-        if (currentMode == DemoMode.SingleSource)
-        {
-            EmitSource(source1);
-        }
-        else if (currentMode == DemoMode.Interference)
-        {
-            EmitSource(source1);
-            EmitSource(source2);
-        }
-        else if (currentMode == DemoMode.Diffraction)
-        {
-            EmitSource(source1);
+            int sourceX = Mathf.Clamp(wallX - 1, 1, sim.size - 2); // just before the wall
+
+            float wave = Mathf.Sin(Time.time * slitSourceFrequency * Mathf.PI * 2f) * slitSourceAmplitude;
+
+            sim.SetSource(sourceX, Mathf.Clamp(slit1Y, 1, sim.size - 2), wave);
+            sim.SetSource(sourceX, Mathf.Clamp(slit2Y, 1, sim.size - 2), wave);
         }
     }
 
-    void EmitSource(Vector2Int source)
+    // 🔹 MODE 1: SINGLE PULSE
+    void SetSinglePulseMode()
     {
-        float wave = Mathf.Sin(timer * sourceFrequency * Mathf.PI * 2f);
-        float strength = wave * sourceAmplitude;
+        currentMode = Mode.SinglePulse;
+        sim.ResetSimulation();
 
-        // Distribute the source strength over a small radius with a smooth cosine falloff
-        int r = Mathf.Max(0, sourceRadius);
-        for (int oy = -r; oy <= r; oy++)
-        {
-            for (int ox = -r; ox <= r; ox++)
-            {
-                float dist = Mathf.Sqrt(ox * ox + oy * oy);
-                if (dist > r) continue;
+        int cx = (singlePulsePosition.x >= 0) ? singlePulsePosition.x : sim.size / 2;
+        int cy = (singlePulsePosition.y >= 0) ? singlePulsePosition.y : sim.size / 2;
 
-                float t = (r == 0) ? 0f : Mathf.Clamp01(dist / (float)r);
-                // cosine falloff: 1 at center, 0 at radius
-                float weight = Mathf.Cos(t * Mathf.PI) * 0.5f + 0.5f;
+        sim.AddImpulse(cx, cy, singlePulseAmplitude);
+    }
 
-                int tx = source.x + ox;
-                int ty = source.y + oy;
+    // 🔹 MODE 2: INTERACTIVE
+    void SetInteractiveMode()
+    {
+        currentMode = Mode.Interactive;
+        sim.ResetSimulation();
+    }
 
-                sim.SetSource(tx, ty, strength * weight);
-            }
-        }
+    // 🔹 MODE 3: DIFFRACTION
+    void SetDiffractionMode()
+    {
+        currentMode = Mode.Diffraction;
+
+        sim.ResetSimulation();
+        sim.CreateDoubleSlit(slitWallX, slitSeparation, slitHeight);
+
+        int wallX = (slitWallX >= 0) ? slitWallX : sim.size / 2;
+        int centerY = sim.size / 2;
+        int sep = Mathf.Abs(slitSeparation);
+        int slit1Y = centerY - sep;
+        int slit2Y = centerY + sep;
+
+        int sourceX = Mathf.Clamp(wallX - 1, 1, sim.size - 2);
+
+        // give an initial coherent kick at both slits to seed the interference
+        sim.AddImpulse(sourceX, Mathf.Clamp(slit1Y, 1, sim.size - 2), singlePulseAmplitude);
+        sim.AddImpulse(sourceX, Mathf.Clamp(slit2Y, 1, sim.size - 2), singlePulseAmplitude);
+    }
+
+    // 🔹 USED BY CLICK SCRIPT
+    public Mode GetMode()
+
+    {
+        return currentMode;
     }
 }

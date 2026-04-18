@@ -106,4 +106,35 @@ public class WaveSimulation : MonoBehaviour
             obstacle[wallX, y] = false;
         }
     }
+
+    // Create a double-slit (Young's double slit style) in a vertical wall.
+    public void CreateDoubleSlit(int wallX = -1, int separation = 6, int slitHeight = 3)
+    {
+        if (wallX < 0) wallX = size / 2;
+
+        // set full wall
+        for (int y = 0; y < size; y++)
+        {
+            obstacle[wallX, y] = true;
+        }
+
+        int centerY = size / 2;
+        int halfHeight = Mathf.Max(0, slitHeight / 2);
+
+        int sep = Mathf.Abs(separation);
+        int slit1Center = centerY - sep;
+        int slit2Center = centerY + sep;
+
+        // open slit 1
+        for (int y = slit1Center - halfHeight; y <= slit1Center + halfHeight; y++)
+        {
+            if (y >= 0 && y < size) obstacle[wallX, y] = false;
+        }
+
+        // open slit 2
+        for (int y = slit2Center - halfHeight; y <= slit2Center + halfHeight; y++)
+        {
+            if (y >= 0 && y < size) obstacle[wallX, y] = false;
+        }
+    }
 }
