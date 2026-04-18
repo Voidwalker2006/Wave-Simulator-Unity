@@ -1,5 +1,5 @@
 To run follow  the steps
-1. Ensure your have unity downloaded.
+1. Ensure your have unity and git downloaded.
 2. Click "CODE" on the main page of this repo and copy url.
 3. in terminal paste: git clone *insert url*
 4. in unity hub click add project from disk and click on the downloaded file.
